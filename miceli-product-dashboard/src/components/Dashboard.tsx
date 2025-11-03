@@ -8,14 +8,22 @@ const Dashboard: React.FC = () => {
     const [dailySummary, setDailySummary] = useState<DailyProductionGtinSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const effectRan = React.useRef(false); // Add a ref to track if the effect has run
 
     useEffect(() => {
+        // Only run the effect once, even in StrictMode
+        if (effectRan.current === true) {
+            return;
+        }
+        effectRan.current = true;
+
         const connection = createSignalRConnection();
 
         const fetchInitialData = async (abortSignal: AbortSignal) => {
             try {
                 const today = new Date().toLocaleDateString('fr-CA').replace(/-/g, '').substring(2);
                 const summary = await getDailySummaryByGtin(today, { signal: abortSignal });
+                console.log("Fetched summary data:", summary); // Add this line to check the data
                 setDailySummary(summary);
             } catch (err: any) {
                 if (err.name !== 'CanceledError') {
@@ -50,6 +58,7 @@ const Dashboard: React.FC = () => {
             console.log("Cleaning up: stopping SignalR connection and aborting fetch.");
             abortController.abort(); // Abort the initial data fetch if it's still in progress
             connection.stop(); // Stop the SignalR connection
+            // We don't reset effectRan.current here so the effect doesn't run again on remount
         };
     }, []); // The empty dependency array ensures this runs only on mount and unmount
 
@@ -59,7 +68,17 @@ const Dashboard: React.FC = () => {
     return (
         <div>
             <h1>Daily Production Summary</h1>
-            {/* Your table and other UI elements go here */}
+            {dailySummary.length > 0 ? (
+                <ul>
+                    {dailySummary.map((item, index) => (
+                        <li key={index}>
+                            GTIN: {item.gtin} - Total Scans: {item.totalScans}
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <p>No production data available for today.</p>
+            )}
         </div>
     );
 };
