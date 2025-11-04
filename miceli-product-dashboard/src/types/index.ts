@@ -1,8 +1,3 @@
-export enum CaseStatus {
-    Staged,
-    Released,
-    OnHold,
-}
 
 export interface Scan {
     id: number;
@@ -12,7 +7,6 @@ export interface Scan {
     productionDate: string; // Assuming YYYY-MM-DD format
     scanTimestamp: string; // ISO 8601 date string
     stationId: string;
-    status: CaseStatus;
     netWeight: number;
 }
 

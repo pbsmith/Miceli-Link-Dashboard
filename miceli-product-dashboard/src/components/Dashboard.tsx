@@ -2,28 +2,26 @@
 import React, { useState, useEffect } from 'react';
 import { getDailySummaryByGtin } from '../services/apiService';
 import { createSignalRConnection } from '../services/apiService';
-import type { DailyProductionGtinSummary, Scan } from '../types';
+// Remove 'Scan' from this import
+import type { DailyProductionGtinSummary } from '../types';
 
 const Dashboard: React.FC = () => {
     const [dailySummary, setDailySummary] = useState<DailyProductionGtinSummary[]>([]);
+    const [yesterdaySummary, setYesterdaySummary] = useState<DailyProductionGtinSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const effectRan = React.useRef(false); // Add a ref to track if the effect has run
+    const [yesterdayLoading, setYesterdayLoading] = useState(false);
+    const [yesterdayError, setYesterdayError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState('today');
 
     useEffect(() => {
-        // Only run the effect once, even in StrictMode
-        if (effectRan.current === true) {
-            return;
-        }
-        effectRan.current = true;
-
         const connection = createSignalRConnection();
+        const abortController = new AbortController();
 
         const fetchInitialData = async (abortSignal: AbortSignal) => {
             try {
                 const today = new Date().toLocaleDateString('fr-CA').replace(/-/g, '').substring(2);
                 const summary = await getDailySummaryByGtin(today, { signal: abortSignal });
-                console.log("Fetched summary data:", summary); // Add this line to check the data
                 setDailySummary(summary);
             } catch (err: any) {
                 if (err.name !== 'CanceledError') {
@@ -35,17 +33,21 @@ const Dashboard: React.FC = () => {
             }
         };
 
-        // Use an AbortController to clean up the fetch request if the component unmounts
-        const abortController = new AbortController();
         fetchInitialData(abortController.signal);
 
-        // Set up the handler for receiving SignalR messages
-        connection.on("ReceiveScanUpdate", (newScan: Scan) => {
-            console.log("New scan received:", newScan);
-            // Logic to update summary state would go here
+        // Remove the old "ReceiveScanUpdate" handler and replace it with the new one.
+        connection.on("UpdateDailyGtinSummary", (updatedSummary: DailyProductionGtinSummary[]) => {
+            console.log("Received updated daily GTIN summary:", updatedSummary);
+            // Simply replace the old summary with the new one from the server.
+            setDailySummary(updatedSummary);
         });
 
-        // Start the connection
+        // The server also sends hourly updates. For now, let's just log them.
+        // We can build a new component to display this data later if you wish.
+        connection.on("UpdateHourlyProduction", (hourlySummary: any[]) => {
+            console.log("Received updated hourly production:", hourlySummary);
+        });
+
         connection.start()
             .then(() => console.log("SignalR Connected."))
             .catch(err => {
@@ -53,32 +55,78 @@ const Dashboard: React.FC = () => {
                 setError("Failed to connect to live updates.");
             });
 
-        // This is the crucial cleanup function
         return () => {
-            console.log("Cleaning up: stopping SignalR connection and aborting fetch.");
-            abortController.abort(); // Abort the initial data fetch if it's still in progress
-            connection.stop(); // Stop the SignalR connection
-            // We don't reset effectRan.current here so the effect doesn't run again on remount
+            abortController.abort();
+            connection.stop();
         };
-    }, []); // The empty dependency array ensures this runs only on mount and unmount
+    }, []);
 
-    if (loading) return <div>Loading Dashboard...</div>;
-    if (error) return <div>Error: {error}</div>;
+    const fetchYesterdayData = async () => {
+        if (yesterdaySummary.length > 0) return; // Don't refetch if we already have the data
+
+        setYesterdayLoading(true);
+        setYesterdayError(null);
+        try {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const dateString = yesterday.toLocaleDateString('fr-CA').replace(/-/g, '').substring(2);
+            const summary = await getDailySummaryByGtin(dateString);
+            setYesterdaySummary(summary);
+        } catch (err) {
+            console.error("Failed to fetch yesterday's summary:", err);
+            setYesterdayError("Failed to load yesterday's data.");
+        } finally {
+            setYesterdayLoading(false);
+        }
+    };
+
+    const handleTabClick = (tab: 'today' | 'yesterday') => {
+        setActiveTab(tab);
+        if (tab === 'yesterday') {
+            fetchYesterdayData();
+        }
+    };
+
+    const renderSummary = (data: DailyProductionGtinSummary[], isLoading: boolean, error: string | null, emptyMessage: string) => {
+        if (isLoading) return <div>Loading...</div>;
+        if (error) return <div>Error: {error}</div>;
+        if (data.length === 0) return <p>{emptyMessage}</p>;
+
+        return (
+            <div className="summary-list">
+                <div className="summary-header">
+                    <span>GTIN</span>
+                    <span>Total Cases</span>
+                    <span>Total Pounds</span>
+                </div>
+                {data.map((item, index) => (
+                    <div key={index} className="summary-row">
+                        <span>{item.gtin}</span>
+                        <span>{item.totalCases}</span>
+                        <span>{item.totalPounds}</span>
+                    </div>
+                ))}
+            </div>
+        );
+    };
 
     return (
-        <div>
+        <div className="dashboard-container">
             <h1>Daily Production Summary</h1>
-            {dailySummary.length > 0 ? (
-                <ul>
-                    {dailySummary.map((item, index) => (
-                        <li key={index}>
-                            GTIN: {item.gtin} - Total Scans: {item.totalScans}
-                        </li>
-                    ))}
-                </ul>
-            ) : (
-                <p>No production data available for today.</p>
-            )}
+            <div className="tabs">
+                <button onClick={() => handleTabClick('today')} className={activeTab === 'today' ? 'active' : ''}>
+                    Today
+                </button>
+                <button onClick={() => handleTabClick('yesterday')} className={activeTab === 'yesterday' ? 'active' : ''}>
+                    Yesterday
+                </button>
+            </div>
+            <div className="tab-content">
+                {activeTab === 'today' ?
+                    renderSummary(dailySummary, loading, error, "No production data available for today.") :
+                    renderSummary(yesterdaySummary, yesterdayLoading, yesterdayError, "No production data available for yesterday.")
+                }
+            </div>
         </div>
     );
 };
