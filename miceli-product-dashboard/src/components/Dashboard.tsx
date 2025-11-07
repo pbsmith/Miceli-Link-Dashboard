@@ -1,132 +1,144 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
-import { getDailySummaryByGtin } from '../services/apiService';
-import { createSignalRConnection } from '../services/apiService';
-// Remove 'Scan' from this import
-import type { DailyProductionGtinSummary } from '../types';
+import { createSignalRConnection, getDailySummaryByGtin, getHourlyProduction } from '../services/apiService';
+import type { DailyProductionGtinSummary, Scan, HourlyProductionSummary } from '../types';
+import { ProductionSummaryContainer } from './ProductionSummaryContainer';
+import { HourlyProductionChart } from './HourlyProductionChart';
+
+function getProductionDate(date: Date): string {
+    // Formats date to 'yyMMdd'
+    return date.toLocaleDateString('fr-CA').replace(/-/g, '').substring(2);
+}
 
 const Dashboard: React.FC = () => {
-    const [dailySummary, setDailySummary] = useState<DailyProductionGtinSummary[]>([]);
-    const [yesterdaySummary, setYesterdaySummary] = useState<DailyProductionGtinSummary[]>([]);
+    const [todaysSummary, setTodaysSummary] = useState<DailyProductionGtinSummary[]>([]);
+    const [yesterdaysSummary, setYesterdaysSummary] = useState<DailyProductionGtinSummary[]>([]);
+    const [hourlyData, setHourlyData] = useState<HourlyProductionSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [yesterdayLoading, setYesterdayLoading] = useState(false);
-    const [yesterdayError, setYesterdayError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState('today');
+
+    const updateTodaysSummary = (newScan: Scan) => {
+        if (!newScan.gtin) return;
+
+        setTodaysSummary(prevSummary => {
+            const summaryIndex = prevSummary.findIndex(s => s.gtin === newScan.gtin);
+            const newSummary = [...prevSummary];
+
+            if (summaryIndex > -1) {
+                const item = newSummary[summaryIndex];
+                newSummary[summaryIndex] = {
+                    ...item,
+                    totalCases: item.totalCases + 1,
+                    totalPounds: item.totalPounds + newScan.netWeight,
+                };
+            } else {
+                newSummary.push({
+                    gtin: newScan.gtin,
+                    totalCases: 1,
+                    totalPounds: newScan.netWeight,
+                    itemCode: "N/A", // Add placeholder
+                    applicationDescription: "Unknown Item" // Add placeholder
+                });
+            }
+            return newSummary.sort((a, b) => a.applicationDescription.localeCompare(b.applicationDescription));
+        });
+    };
+
+    const updateHourlyData = (newScan: Scan) => {
+        const currentLocalHour = new Date().getHours();
+        setHourlyData(prevData => {
+            const newData = [...prevData];
+            const hourIndex = newData.findIndex(d => d.hour === currentLocalHour);
+
+            if (hourIndex > -1) {
+                // Hour exists, update it
+                const hourData = newData[hourIndex];
+                newData[hourIndex] = {
+                    ...hourData,
+                    totalCases: hourData.totalCases + 1,
+                    totalPounds: hourData.totalPounds + newScan.netWeight,
+                };
+            } else {
+                // First scan for this hour, add it
+                newData.push({
+                    hour: currentLocalHour,
+                    totalCases: 1,
+                    totalPounds: newScan.netWeight,
+                });
+            }
+            return newData;
+        });
+    };
 
     useEffect(() => {
-        const connection = createSignalRConnection();
-        const abortController = new AbortController();
-
-        const fetchInitialData = async (abortSignal: AbortSignal) => {
+        const fetchInitialData = async () => {
             try {
-                const today = new Date().toLocaleDateString('fr-CA').replace(/-/g, '').substring(2);
-                const summary = await getDailySummaryByGtin(today, { signal: abortSignal });
-                setDailySummary(summary);
-            } catch (err: any) {
-                if (err.name !== 'CanceledError') {
-                    console.error("Failed to fetch daily summary:", err);
-                    setError("Failed to load initial data.");
-                }
+                setLoading(true);
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+
+                const todaysDateStr = getProductionDate(today);
+
+                const [todaySummary, yesterdaySummary, hourlyProd] = await Promise.all([
+                    getDailySummaryByGtin(todaysDateStr),
+                    getDailySummaryByGtin(getProductionDate(yesterday)),
+                    getHourlyProduction(todaysDateStr)
+                ]);
+
+                // Convert UTC hour from API to client's local hour
+                const localHourlyData = hourlyProd.map(item => {
+                    // Create a date object for today in UTC, then set the hour from the API data
+                    const utcDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+                    utcDate.setUTCHours(item.hour);
+
+                    // getHours() automatically converts the UTC date to the browser's local time zone
+                    const localHour = utcDate.getHours();
+
+                    return { ...item, hour: localHour };
+                });
+
+                setTodaysSummary(todaySummary);
+                setYesterdaysSummary(yesterdaySummary);
+                setHourlyData(localHourlyData); // Pass the converted data to state
+                setError(null);
+            } catch (err) {
+                console.error("Failed to fetch daily summary:", err);
+                setError("Failed to load data. Is the API running?");
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchInitialData(abortController.signal);
+        fetchInitialData();
 
-        // Remove the old "ReceiveScanUpdate" handler and replace it with the new one.
-        connection.on("UpdateDailyGtinSummary", (updatedSummary: DailyProductionGtinSummary[]) => {
-            console.log("Received updated daily GTIN summary:", updatedSummary);
-            // Simply replace the old summary with the new one from the server.
-            setDailySummary(updatedSummary);
-        });
-
-        // The server also sends hourly updates. For now, let's just log them.
-        // We can build a new component to display this data later if you wish.
-        connection.on("UpdateHourlyProduction", (hourlySummary: any[]) => {
-            console.log("Received updated hourly production:", hourlySummary);
+        const connection = createSignalRConnection((newScan: Scan) => {
+            console.log("New scan received via SignalR:", newScan);
+            updateTodaysSummary(newScan);
+            updateHourlyData(newScan); // Add this call to update the chart
         });
 
         connection.start()
-            .then(() => console.log("SignalR Connected."))
-            .catch(err => {
-                console.error("SignalR Connection Error: ", err);
-                setError("Failed to connect to live updates.");
-            });
+            .then(() => console.log('SignalR Connected.'))
+            .catch(err => console.error('SignalR Connection Error: ', err));
 
+        // Cleanup on component unmount
         return () => {
-            abortController.abort();
             connection.stop();
         };
     }, []);
 
-    const fetchYesterdayData = async () => {
-        if (yesterdaySummary.length > 0) return; // Don't refetch if we already have the data
-
-        setYesterdayLoading(true);
-        setYesterdayError(null);
-        try {
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            const dateString = yesterday.toLocaleDateString('fr-CA').replace(/-/g, '').substring(2);
-            const summary = await getDailySummaryByGtin(dateString);
-            setYesterdaySummary(summary);
-        } catch (err) {
-            console.error("Failed to fetch yesterday's summary:", err);
-            setYesterdayError("Failed to load yesterday's data.");
-        } finally {
-            setYesterdayLoading(false);
-        }
-    };
-
-    const handleTabClick = (tab: 'today' | 'yesterday') => {
-        setActiveTab(tab);
-        if (tab === 'yesterday') {
-            fetchYesterdayData();
-        }
-    };
-
-    const renderSummary = (data: DailyProductionGtinSummary[], isLoading: boolean, error: string | null, emptyMessage: string) => {
-        if (isLoading) return <div>Loading...</div>;
-        if (error) return <div>Error: {error}</div>;
-        if (data.length === 0) return <p>{emptyMessage}</p>;
-
-        return (
-            <div className="summary-list">
-                <div className="summary-header">
-                    <span>GTIN</span>
-                    <span>Total Cases</span>
-                    <span>Total Pounds</span>
-                </div>
-                {data.map((item, index) => (
-                    <div key={index} className="summary-row">
-                        <span>{item.gtin}</span>
-                        <span>{item.totalCases}</span>
-                        <span>{item.totalPounds}</span>
-                    </div>
-                ))}
-            </div>
-        );
-    };
+    if (loading) return <div>Loading dashboard...</div>;
+    if (error) return <div style={{ color: 'red' }}>{error}</div>;
 
     return (
         <div className="dashboard-container">
-            <h1>Daily Production Summary</h1>
-            <div className="tabs">
-                <button onClick={() => handleTabClick('today')} className={activeTab === 'today' ? 'active' : ''}>
-                    Today
-                </button>
-                <button onClick={() => handleTabClick('yesterday')} className={activeTab === 'yesterday' ? 'active' : ''}>
-                    Yesterday
-                </button>
+            <h1>Production Dashboard</h1>
+            <div className="dashboard-grid">
+                <ProductionSummaryContainer todaysData={todaysSummary} yesterdaysData={yesterdaysSummary} />
+                <HourlyProductionChart chartData={hourlyData} />
             </div>
-            <div className="tab-content">
-                {activeTab === 'today' ?
-                    renderSummary(dailySummary, loading, error, "No production data available for today.") :
-                    renderSummary(yesterdaySummary, yesterdayLoading, yesterdayError, "No production data available for yesterday.")
-                }
-            </div>
+            {/* We will add the activity feed here in the next steps */}
         </div>
     );
 };

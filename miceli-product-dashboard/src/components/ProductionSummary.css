@@ -1,0 +1,108 @@
+/* Tab Container Styles */
+.tab-header {
+  display: flex;
+  border-bottom: 1px solid #dee2e6;
+  margin-bottom: -1px;
+}
+
+.tab-button {
+  padding: 0.75rem 1.25rem;
+  border: 1px solid transparent;
+  border-top-left-radius: 0.25rem;
+  border-top-right-radius: 0.25rem;
+  cursor: pointer;
+  background-color: transparent;
+  font-size: 1rem;
+  color: #495057;
+  margin-bottom: -1px; /* Overlap the container's bottom border */
+}
+
+.tab-button:hover {
+  border-color: #e9ecef #e9ecef #dee2e6;
+}
+
+.tab-button.active {
+  color: #0d6efd;
+  background-color: #fff;
+  border-color: #dee2e6 #dee2e6 #fff;
+}
+
+/* Summary List Styles */
+.summary-list-wrapper {
+  background-color: #fff;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid #dee2e6;
+  border-top-left-radius: 0;
+}
+
+.summary-list-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.summary-list-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.summary-table-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-table-header,
+.summary-table-row {
+  display: grid;
+  grid-template-columns: 3fr 1fr 1fr;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  text-align: left;
+}
+
+.summary-table-header {
+  background-color: #f9fafb;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.summary-table-body {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.summary-table-row {
+  font-size: 0.875rem;
+  color: #111827;
+}
+
+.summary-table-row:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.no-data-message {
+  padding: 1.5rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+/* Utility classes */
+.text-right {
+  text-align: right;
+}
+
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

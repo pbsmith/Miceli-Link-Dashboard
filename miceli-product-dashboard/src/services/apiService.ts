@@ -1,7 +1,6 @@
-// src/services/apiService.ts
 import axios from 'axios';
-import { HubConnectionBuilder } from '@microsoft/signalr';
-import type { DailyProductionGtinSummary } from '../types';
+import * as signalR from "@microsoft/signalr";
+import type { DailyProductionGtinSummary, HourlyProductionSummary, Scan } from '../types';
 
 const apiKey = "f1e2d3c4-b5a6-7b8c-9d0e-f1a2b3c4d5e6"; // <-- PLACE YOUR API KEY HERE
 
@@ -22,13 +21,28 @@ api.interceptors.request.use(config => {
 // Correctly type the optional second argument
 export const getDailySummaryByGtin = async (date: string, options?: { signal: AbortSignal }) => {
     const response = await api.get<DailyProductionGtinSummary[]>(`/dashboard/summary-by-gtin/${date}`, options);
-    return response.data;
+    return response.data || [];
 };
 
-export const createSignalRConnection = () => {
-    // Append the API key as a query string parameter to the URL.
-    return new HubConnectionBuilder()
-        .withUrl(`/dashboardHub?apiKey=${apiKey}`)
+export const getHourlyProduction = async (productionDate: string): Promise<HourlyProductionSummary[]> => {
+    const response = await api.get<HourlyProductionSummary[]>(`/dashboard/hourly-rate/${productionDate}`);
+    return response.data || [];
+};
+
+export const createSignalRConnection = (onNewScan: (scan: Scan) => void) => {
+    // Correct the Hub URL and add the apiKey to the query string
+    const hubUrl = (import.meta.env.VITE_HUB_URL || "https://localhost:5001/dashboardHub") + `?apiKey=${apiKey}`;
+
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl(hubUrl)
         .withAutomaticReconnect()
+        .configureLogging(signalR.LogLevel.Warning)
         .build();
+
+    // The server sends "ReceiveScanUpdate", so the client should listen for that
+    connection.on("ReceiveScanUpdate", (scan) => {
+        onNewScan(scan);
+    });
+
+    return connection;
 };

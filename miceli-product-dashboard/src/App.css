@@ -120,6 +120,7 @@ body {
   padding: 12px 15px;
   border-bottom: 1px solid #333;
   align-items: center;
+  text-align: left;
 }
 
 .summary-header {
@@ -147,4 +148,18 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* Media query for screens smaller than 1024px */
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr; /* Stack the items vertically */
+  }
 }

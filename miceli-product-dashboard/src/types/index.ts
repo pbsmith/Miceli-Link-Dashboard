@@ -1,4 +1,3 @@
-
 export interface Scan {
     id: number;
     gtin: string | null;
@@ -21,6 +20,8 @@ export interface BlockCheeseScan extends Scan {
 
 export interface DailyProductionGtinSummary {
     gtin: string | null;
+    itemCode: string;
+    applicationDescription: string;
     totalCases: number;
     totalPounds: number;
 }
@@ -28,4 +29,5 @@ export interface DailyProductionGtinSummary {
 export interface HourlyProductionSummary {
     hour: number;
     totalCases: number;
+    totalPounds: number;
 }
