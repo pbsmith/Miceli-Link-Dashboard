@@ -1,7 +1,7 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
 import { createSignalRConnection, getDailySummaryByGtin, getHourlyProduction } from '../services/apiService';
-import type { DailyProductionGtinSummary, Scan, HourlyProductionSummary } from '../types';
+import type { DailyProductionGtinSummary, HourlyProductionSummary } from '../types';
 import { ProductionSummaryContainer } from './ProductionSummaryContainer';
 import { HourlyProductionChart } from './HourlyProductionChart';
 
@@ -17,34 +17,41 @@ const Dashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const updateTodaysSummary = (newScan: Scan) => {
+    const updateTodaysSummary = (newScan: any) => { // Changed type to any to reflect actual data
         if (!newScan.gtin) return;
+
+        const gtin = newScan.gtin;
 
         setTodaysSummary(prevSummary => {
             const summaryIndex = prevSummary.findIndex(s => s.gtin === newScan.gtin);
             const newSummary = [...prevSummary];
 
             if (summaryIndex > -1) {
+                // GTIN exists, update it
                 const item = newSummary[summaryIndex];
                 newSummary[summaryIndex] = {
                     ...item,
                     totalCases: item.totalCases + 1,
-                    totalPounds: item.totalPounds + newScan.netWeight,
+                    // Use totalPounds from the new scan object, not netWeight
+                    totalPounds: item.totalPounds + newScan.totalPounds,
                 };
             } else {
+                // New GTIN, add it
                 newSummary.push({
-                    gtin: newScan.gtin,
+                    gtin: gtin,
                     totalCases: 1,
-                    totalPounds: newScan.netWeight,
-                    itemCode: "N/A", // Add placeholder
-                    applicationDescription: "Unknown Item" // Add placeholder
+                    // Use totalPounds from the new scan object, not netWeight
+                    totalPounds: newScan.totalPounds,
+                    itemCode: newScan.itemCode || "N/A",
+                    applicationDescription: newScan.applicationDescription || "Unknown Item"
                 });
             }
+            // Sort the list any time it's updated
             return newSummary.sort((a, b) => a.applicationDescription.localeCompare(b.applicationDescription));
         });
     };
 
-    const updateHourlyData = (newScan: Scan) => {
+    const updateHourlyData = (newScan: any) => { // Changed type to any to reflect actual data
         const currentLocalHour = new Date().getHours();
         setHourlyData(prevData => {
             const newData = [...prevData];
@@ -56,14 +63,16 @@ const Dashboard: React.FC = () => {
                 newData[hourIndex] = {
                     ...hourData,
                     totalCases: hourData.totalCases + 1,
-                    totalPounds: hourData.totalPounds + newScan.netWeight,
+                    // Use totalPounds from the new scan object, not netWeight
+                    totalPounds: hourData.totalPounds + newScan.totalPounds,
                 };
             } else {
                 // First scan for this hour, add it
                 newData.push({
                     hour: currentLocalHour,
                     totalCases: 1,
-                    totalPounds: newScan.netWeight,
+                    // Use totalPounds from the new scan object, not netWeight
+                    totalPounds: newScan.totalPounds,
                 });
             }
             return newData;
@@ -112,8 +121,7 @@ const Dashboard: React.FC = () => {
 
         fetchInitialData();
 
-        const connection = createSignalRConnection((newScan: Scan) => {
-            console.log("New scan received via SignalR:", newScan);
+        const connection = createSignalRConnection((newScan: any) => { // Changed type to any
             updateTodaysSummary(newScan);
             updateHourlyData(newScan); // Add this call to update the chart
         });
