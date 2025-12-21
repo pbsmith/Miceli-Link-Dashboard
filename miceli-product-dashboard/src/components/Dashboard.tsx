@@ -141,7 +141,7 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="dashboard-container">
-            <h1>Miceli Dairy Products Mozzarella Overview</h1>
+            <h1>Miceli Dairy Production Overview</h1>
             <div className="dashboard-grid">
                 <ProductionSummaryContainer todaysData={todaysSummary} yesterdaysData={yesterdaysSummary} />
                 <HourlyProductionChart chartData={hourlyData} />
