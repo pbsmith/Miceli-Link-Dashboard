@@ -31,7 +31,7 @@ export const getHourlyProduction = async (productionDate: string): Promise<Hourl
 
 export const createSignalRConnection = (onNewScan: (scan: Scan) => void) => {
     // Correct the Hub URL and add the apiKey to the query string
-    const hubUrl = (import.meta.env.VITE_HUB_URL || "https://localhost:5001/dashboardHub") + `?apiKey=${apiKey}`;
+    const hubUrl = (import.meta.env.VITE_HUB_URL || "https://mdpc-app.mdpc.com/dashboardHub") + `?apiKey=${apiKey}`;
 
     const connection = new signalR.HubConnectionBuilder()
         .withUrl(hubUrl)
