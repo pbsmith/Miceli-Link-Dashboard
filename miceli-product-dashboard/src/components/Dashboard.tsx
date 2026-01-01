@@ -1,9 +1,10 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
-import { createSignalRConnection, getDailySummaryByGtin, getHourlyProduction } from '../services/apiService';
-import type { DailyProductionGtinSummary, HourlyProductionSummary } from '../types';
+import { createSignalRConnection, getDailySummaryByGtin, getHourlyProduction, getStationStatuses } from '../services/apiService';
+import type { DailyProductionGtinSummary, HourlyProductionSummary, ScanUpdate, StationStatus } from '../types';
 import { ProductionSummaryContainer } from './ProductionSummaryContainer';
 import { HourlyProductionChart } from './HourlyProductionChart';
+import { StationStatusList } from './StationStatusList';
 
 function getProductionDate(date: Date): string {
     // Formats date to 'yyMMdd'
@@ -14,10 +15,11 @@ const Dashboard: React.FC = () => {
     const [todaysSummary, setTodaysSummary] = useState<DailyProductionGtinSummary[]>([]);
     const [yesterdaysSummary, setYesterdaysSummary] = useState<DailyProductionGtinSummary[]>([]);
     const [hourlyData, setHourlyData] = useState<HourlyProductionSummary[]>([]);
+    const [stationStatuses, setStationStatuses] = useState<StationStatus[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const updateTodaysSummary = (newScan: any) => { // Changed type to any to reflect actual data
+    const updateTodaysSummary = (newScan: ScanUpdate) => {
         if (!newScan.gtin) return;
 
         const gtin = newScan.gtin;
@@ -51,7 +53,7 @@ const Dashboard: React.FC = () => {
         });
     };
 
-    const updateHourlyData = (newScan: any) => { // Changed type to any to reflect actual data
+    const updateHourlyData = (newScan: ScanUpdate) => {
         const currentLocalHour = new Date().getHours();
         setHourlyData(prevData => {
             const newData = [...prevData];
@@ -79,6 +81,22 @@ const Dashboard: React.FC = () => {
         });
     };
 
+    const updateStationStatus = (statusUpdate: StationStatus) => {
+        setStationStatuses(prevStatuses => {
+            const newStatuses = [...prevStatuses];
+            const stationIndex = newStatuses.findIndex(s => s.stationId === statusUpdate.stationId);
+
+            if (stationIndex > -1) {
+                // Update existing station
+                newStatuses[stationIndex] = statusUpdate;
+            } else {
+                // Add new station
+                newStatuses.push(statusUpdate);
+            }
+            return newStatuses;
+        });
+    };
+
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -89,10 +107,11 @@ const Dashboard: React.FC = () => {
 
                 const todaysDateStr = getProductionDate(today);
 
-                const [todaySummary, yesterdaySummary, hourlyProd] = await Promise.all([
+                const [todaySummary, yesterdaySummary, hourlyProd, stations] = await Promise.all([
                     getDailySummaryByGtin(todaysDateStr),
                     getDailySummaryByGtin(getProductionDate(yesterday)),
-                    getHourlyProduction(todaysDateStr)
+                    getHourlyProduction(todaysDateStr),
+                    getStationStatuses()
                 ]);
 
                 // Convert UTC hour from API to client's local hour
@@ -109,10 +128,11 @@ const Dashboard: React.FC = () => {
 
                 setTodaysSummary(todaySummary);
                 setYesterdaysSummary(yesterdaySummary);
-                setHourlyData(localHourlyData); // Pass the converted data to state
+                setHourlyData(localHourlyData);
+                setStationStatuses(stations);
                 setError(null);
             } catch (err) {
-                console.error("Failed to fetch daily summary:", err);
+                console.error("Failed to fetch initial data:", err);
                 setError("Failed to load data. Is the API running?");
             } finally {
                 setLoading(false);
@@ -121,13 +141,17 @@ const Dashboard: React.FC = () => {
 
         fetchInitialData();
 
-        const connection = createSignalRConnection((newScan: any) => { // Changed type to any
-            updateTodaysSummary(newScan);
-            updateHourlyData(newScan); // Add this call to update the chart
-        });
+        const connection = createSignalRConnection(
+            (newScan: ScanUpdate) => {
+                updateTodaysSummary(newScan);
+                updateHourlyData(newScan);
+            },
+            (statusUpdate: StationStatus) => {
+                updateStationStatus(statusUpdate);
+            }
+        );
 
         connection.start()
-            .then(() => console.log('SignalR Connected.'))
             .catch(err => console.error('SignalR Connection Error: ', err));
 
         // Cleanup on component unmount
@@ -141,12 +165,14 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="dashboard-container">
-            <h1>Miceli Dairy Production Overview</h1>
+            <h1>Production Dashboard</h1>
             <div className="dashboard-grid">
                 <ProductionSummaryContainer todaysData={todaysSummary} yesterdaysData={yesterdaysSummary} />
                 <HourlyProductionChart chartData={hourlyData} />
             </div>
-            {/* We will add the activity feed here in the next steps */}
+            <div style={{ marginTop: '1.5rem' }}>
+                <StationStatusList stations={stationStatuses} />
+            </div>
         </div>
     );
 };

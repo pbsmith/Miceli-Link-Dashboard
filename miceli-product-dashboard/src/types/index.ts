@@ -9,6 +9,29 @@ export interface Scan {
     netWeight: number;
 }
 
+// ...existing code...
+export interface Scan {
+  gtin: string | null;
+  netWeight: number;
+}
+
+// Type for the object received from SignalR for new scans
+export interface ScanUpdate {
+  gtin: string;
+  itemCode: string;
+  applicationDescription: string;
+  totalCases: number;
+  totalPounds: number;
+}
+
+// Type for the station status objects
+export interface StationStatus {
+  stationId: string;
+  currentStatus: string; // Renamed from 'status'
+  ipAddress: string | null; // Allow null
+  lastSeen: string; // Renamed from 'lastHeartbeat'
+}
+
 export interface StringCheeseScan extends Scan {
     lotCode: string | null;
 }

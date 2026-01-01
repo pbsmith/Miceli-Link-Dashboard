@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as signalR from "@microsoft/signalr";
-import type { DailyProductionGtinSummary, HourlyProductionSummary, Scan } from '../types';
+import type { DailyProductionGtinSummary, HourlyProductionSummary, ScanUpdate, StationStatus } from '../types';
 
 const apiKey = "f1e2d3c4-b5a6-7b8c-9d0e-f1a2b3c4d5e6"; // <-- PLACE YOUR API KEY HERE
 
@@ -29,9 +29,17 @@ export const getHourlyProduction = async (productionDate: string): Promise<Hourl
     return response.data || [];
 };
 
-export const createSignalRConnection = (onNewScan: (scan: Scan) => void) => {
+export const getStationStatuses = async (): Promise<StationStatus[]> => {
+    const response = await api.get<StationStatus[]>('/dashboard/station-statuses');
+    return response.data || [];
+};
+
+export const createSignalRConnection = (
+    onNewScan: (scan: ScanUpdate) => void,
+    onStationUpdate: (status: StationStatus) => void
+) => {
     // Correct the Hub URL and add the apiKey to the query string
-    const hubUrl = (import.meta.env.VITE_HUB_URL || "https://mdpc-app.mdpc.com/dashboardHub") + `?apiKey=${apiKey}`;
+    const hubUrl = (import.meta.env.VITE_HUB_URL || "https://localhost:5001/dashboardHub") + `?apiKey=${apiKey}`;
 
     const connection = new signalR.HubConnectionBuilder()
         .withUrl(hubUrl)
@@ -39,9 +47,14 @@ export const createSignalRConnection = (onNewScan: (scan: Scan) => void) => {
         .configureLogging(signalR.LogLevel.Warning)
         .build();
 
-    // The server sends "ReceiveScanUpdate", so the client should listen for that
+    // Handler for new scans
     connection.on("ReceiveScanUpdate", (scan) => {
         onNewScan(scan);
+    });
+
+    // Handler for station status updates
+    connection.on("ReceiveStationStatusUpdate", (status) => {
+        onStationUpdate(status);
     });
 
     return connection;
