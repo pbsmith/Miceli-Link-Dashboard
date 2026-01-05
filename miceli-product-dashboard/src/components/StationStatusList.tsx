@@ -1,17 +1,15 @@
-import type { StationStatus } from '../types';
+import type { StationStatus, StationDiagnostics } from '../types';
 import { StationRow } from './StationRow';
 import './StationStatus.css';
 
 interface StationStatusListProps {
   stations: StationStatus[];
+  diagnostics: { [key: string]: StationDiagnostics };
 }
 
-export function StationStatusList({ stations }: StationStatusListProps) {
+export function StationStatusList({ stations, diagnostics }: StationStatusListProps) {
   return (
     <div className="status-list-wrapper">
-      <div className="status-list-header">
-        <h2 className="status-list-title">Station Monitor</h2>
-      </div>
       <div className="status-table-container">
         <div className="status-table">
           {/* Header */}
@@ -19,6 +17,10 @@ export function StationStatusList({ stations }: StationStatusListProps) {
             <span>Station ID</span>
             <span>Status</span>
             <span>IP Address</span>
+            <span className="text-right">Uptime</span>
+            <span className="text-right">CPU</span>
+            <span className="text-right">Memory</span>
+            <span className="text-right">Scans</span>
             <span className="text-right">Last Seen</span>
           </div>
           {/* Body */}
@@ -31,7 +33,11 @@ export function StationStatusList({ stations }: StationStatusListProps) {
               stations
                 .sort((a, b) => a.stationId.localeCompare(b.stationId))
                 .map((station) => (
-                  <StationRow key={station.stationId} station={station} />
+                  <StationRow
+                    key={station.stationId}
+                    station={station}
+                    diagnostics={diagnostics[station.stationId]}
+                  />
                 ))
             )}
           </div>

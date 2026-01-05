@@ -27,9 +27,17 @@ export interface ScanUpdate {
 // Type for the station status objects
 export interface StationStatus {
   stationId: string;
-  currentStatus: string; // Renamed from 'status'
-  ipAddress: string | null; // Allow null
-  lastSeen: string; // Renamed from 'lastHeartbeat'
+  currentStatus: string;
+  ipAddress: string | null;
+  lastSeen: string;
+}
+
+// Type for the station diagnostics object
+export interface StationDiagnostics {
+  uptime_seconds: number;
+  cpu_usage_percent: number;
+  memory_usage_mb: number;
+  scans_since_boot: number;
 }
 
 export interface StringCheeseScan extends Scan {

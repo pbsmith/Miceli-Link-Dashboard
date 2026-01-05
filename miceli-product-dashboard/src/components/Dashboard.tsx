@@ -1,7 +1,7 @@
 // src/components/Dashboard.tsx
 import React, { useState, useEffect } from 'react';
 import { createSignalRConnection, getDailySummaryByGtin, getHourlyProduction, getStationStatuses } from '../services/apiService';
-import type { DailyProductionGtinSummary, HourlyProductionSummary, ScanUpdate, StationStatus } from '../types';
+import type { DailyProductionGtinSummary, HourlyProductionSummary, ScanUpdate, StationStatus, StationDiagnostics } from '../types';
 import { ProductionSummaryContainer } from './ProductionSummaryContainer';
 import { HourlyProductionChart } from './HourlyProductionChart';
 import { StationStatusList } from './StationStatusList';
@@ -16,6 +16,7 @@ const Dashboard: React.FC = () => {
     const [yesterdaysSummary, setYesterdaysSummary] = useState<DailyProductionGtinSummary[]>([]);
     const [hourlyData, setHourlyData] = useState<HourlyProductionSummary[]>([]);
     const [stationStatuses, setStationStatuses] = useState<StationStatus[]>([]);
+    const [stationDiagnostics, setStationDiagnostics] = useState<{ [key: string]: StationDiagnostics }>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -97,6 +98,13 @@ const Dashboard: React.FC = () => {
         });
     };
 
+    const updateStationDiagnostics = (stationId: string, diagInfo: StationDiagnostics) => {
+        setStationDiagnostics(prev => ({
+            ...prev,
+            [stationId]: diagInfo
+        }));
+    };
+
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
@@ -148,6 +156,9 @@ const Dashboard: React.FC = () => {
             },
             (statusUpdate: StationStatus) => {
                 updateStationStatus(statusUpdate);
+            },
+            (stationId: string, diagInfo: StationDiagnostics) => {
+                updateStationDiagnostics(stationId, diagInfo);
             }
         );
 
@@ -171,7 +182,7 @@ const Dashboard: React.FC = () => {
                 <HourlyProductionChart chartData={hourlyData} />
             </div>
             <div style={{ marginTop: '1.5rem' }}>
-                <StationStatusList stations={stationStatuses} />
+                <StationStatusList stations={stationStatuses} diagnostics={stationDiagnostics} />
             </div>
         </div>
     );
