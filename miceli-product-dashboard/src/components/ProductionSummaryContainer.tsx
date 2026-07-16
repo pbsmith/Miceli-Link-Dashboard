@@ -1,35 +1,28 @@
-import { useState } from 'react';
+import React from 'react';
 import type { DailyProductionGtinSummary } from '../types';
 import { ProductionSummaryList } from './ProductionSummaryList';
 import './ProductionSummary.css';
 
 interface ProductionSummaryContainerProps {
-  todaysData: DailyProductionGtinSummary[];
-  yesterdaysData: DailyProductionGtinSummary[];
+  summaryData: DailyProductionGtinSummary[];
+  selectedDateIndex: number;
+  availableDates: Date[];
+  onDateChange: (index: number) => void;
 }
 
-type Tab = 'today' | 'yesterday';
-
-export function ProductionSummaryContainer({ todaysData, yesterdaysData }: ProductionSummaryContainerProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('today');
-
-  const summaryData = activeTab === 'today' ? todaysData : yesterdaysData;
-
+export function ProductionSummaryContainer({ summaryData, selectedDateIndex, availableDates, onDateChange }: ProductionSummaryContainerProps) {
   return (
     <div className="production-summary-container">
-      <div className="tab-header">
-        <button
-          className={`tab-button ${activeTab === 'today' ? 'active' : ''}`}
-          onClick={() => setActiveTab('today')}
-        >
-          Today
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'yesterday' ? 'active' : ''}`}
-          onClick={() => setActiveTab('yesterday')}
-        >
-          Yesterday
-        </button>
+      <div className="tab-header" style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
+        {availableDates.map((date, index) => (
+          <button
+            key={index}
+            className={`tab-button ${selectedDateIndex === index ? 'active' : ''}`}
+            onClick={() => onDateChange(index)}
+          >
+            {index === 0 ? 'Today' : index === 1 ? 'Yesterday' : date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+          </button>
+        ))}
       </div>
       <ProductionSummaryList summaryData={summaryData} />
     </div>

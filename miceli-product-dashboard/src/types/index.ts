@@ -24,22 +24,6 @@ export interface ScanUpdate {
   totalPounds: number;
 }
 
-// Type for the station status objects
-export interface StationStatus {
-  stationId: string;
-  currentStatus: string;
-  ipAddress: string | null;
-  lastSeen: string;
-}
-
-// Type for the station diagnostics object
-export interface StationDiagnostics {
-  uptime_seconds: number;
-  cpu_usage_percent: number;
-  memory_usage_mb: number;
-  scans_since_boot: number;
-}
-
 export interface StringCheeseScan extends Scan {
     lotCode: string | null;
 }

@@ -21,6 +21,7 @@ ChartJS.register(
 
 interface HourlyProductionChartProps {
   chartData: HourlyProductionSummary[];
+  chartTitle?: string;
 }
 
 // Helper to format hour from 24-hour format to 12-hour AM/PM
@@ -31,7 +32,7 @@ const formatHour = (hour: number) => {
   return `${hour - 12} PM`;
 };
 
-export function HourlyProductionChart({ chartData }: HourlyProductionChartProps) {
+export function HourlyProductionChart({ chartData, chartTitle = 'Pounds Produced per Hour' }: HourlyProductionChartProps) {
   // Create a map for all 24 hours initialized to zero
   const hourlyMap = new Map<number, number>();
   for (let i = 0; i < 24; i++) {
@@ -78,7 +79,7 @@ export function HourlyProductionChart({ chartData }: HourlyProductionChartProps)
       },
       title: {
         display: true,
-        text: 'Pounds Produced per Hour (Last 12 Hours)',
+        text: chartTitle,
         font: {
           size: 18,
         }

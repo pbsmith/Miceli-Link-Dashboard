@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as signalR from "@microsoft/signalr";
-import type { DailyProductionGtinSummary, HourlyProductionSummary, ScanUpdate, StationStatus, StationDiagnostics } from '../types';
+import type { DailyProductionGtinSummary, HourlyProductionSummary, ScanUpdate } from '../types';
 
 const apiKey = "f1e2d3c4-b5a6-7b8c-9d0e-f1a2b3c4d5e6"; // <-- PLACE YOUR API KEY HERE
 
@@ -29,15 +29,8 @@ export const getHourlyProduction = async (productionDate: string): Promise<Hourl
     return response.data || [];
 };
 
-export const getStationStatuses = async (): Promise<StationStatus[]> => {
-    const response = await api.get<StationStatus[]>('/dashboard/station-statuses');
-    return response.data || [];
-};
-
 export const createSignalRConnection = (
-    onNewScan: (scan: ScanUpdate) => void,
-    onStationUpdate: (status: StationStatus) => void,
-    onDiagnosticsUpdate: (stationId: string, diagInfo: StationDiagnostics) => void
+    onNewScan: (scan: ScanUpdate) => void
 ) => {
     // Correct the Hub URL and add the apiKey to the query string
     const hubUrl = (import.meta.env.VITE_HUB_URL || "https://localhost:5001/dashboardHub") + `?apiKey=${apiKey}`;
@@ -51,16 +44,6 @@ export const createSignalRConnection = (
     // Handler for new scans
     connection.on("ReceiveScanUpdate", (scan) => {
         onNewScan(scan);
-    });
-
-    // Handler for station status updates
-    connection.on("ReceiveStationStatusUpdate", (status) => {
-        onStationUpdate(status);
-    });
-
-    // Handler for station diagnostics updates
-    connection.on("ReceiveStationDiagnostics", (stationId, diagInfo) => {
-        onDiagnosticsUpdate(stationId, diagInfo);
     });
 
     return connection;
