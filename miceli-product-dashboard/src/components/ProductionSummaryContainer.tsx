@@ -1,4 +1,3 @@
-import React from 'react';
 import type { DailyProductionGtinSummary } from '../types';
 import { ProductionSummaryList } from './ProductionSummaryList';
 import './ProductionSummary.css';
@@ -8,9 +7,10 @@ interface ProductionSummaryContainerProps {
   selectedDateIndex: number;
   availableDates: Date[];
   onDateChange: (index: number) => void;
+  isIdle?: boolean;
 }
 
-export function ProductionSummaryContainer({ summaryData, selectedDateIndex, availableDates, onDateChange }: ProductionSummaryContainerProps) {
+export function ProductionSummaryContainer({ summaryData, selectedDateIndex, availableDates, onDateChange, isIdle = false }: ProductionSummaryContainerProps) {
   return (
     <div className="production-summary-container">
       <div className="tab-header" style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}>
@@ -24,7 +24,7 @@ export function ProductionSummaryContainer({ summaryData, selectedDateIndex, ava
           </button>
         ))}
       </div>
-      <ProductionSummaryList summaryData={summaryData} />
+      <ProductionSummaryList summaryData={summaryData} isIdle={isIdle} />
     </div>
   );
 }

@@ -162,7 +162,7 @@ const Dashboard: React.FC = () => {
             const now = Date.now();
             const timeSinceLastInteraction = now - lastInteractionTime;
             const twoMinutes = 2 * 60 * 1000;
-            
+
             // If the user has been idle for exactly/more than 2 minutes
             if (timeSinceLastInteraction >= twoMinutes) {
                 // Rotate to the next date index
@@ -174,6 +174,15 @@ const Dashboard: React.FC = () => {
 
         return () => clearInterval(checkIdleAndRotate);
     }, [lastInteractionTime, NUM_DAYS]);
+
+    // Force a re-render hook to ensure boolean is Idle gets evaluated frequently enough to kick in
+    const [currentTime, setCurrentTime] = useState(Date.now());
+    useEffect(() => {
+        const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const isUserIdleForOneMinute = (currentTime - lastInteractionTime) >= 60000;
 
     // Update interaction time on user mouse or keyboard activity
     useEffect(() => {
@@ -251,16 +260,17 @@ const Dashboard: React.FC = () => {
         <div className="dashboard-container">
             <h1>Production Dashboard</h1>
             <div className="dashboard-grid">
-                <ProductionSummaryContainer 
-                    summaryData={weekSummaryData[selectedDateIndex] || []} 
+                <ProductionSummaryContainer
+                    summaryData={weekSummaryData[selectedDateIndex] || []}       
                     selectedDateIndex={selectedDateIndex}
                     availableDates={availableDates}
                     onDateChange={(index) => {
                         setSelectedDateIndex(index);
                         setLastInteractionTime(Date.now());
-                    }} 
+                    }}
+                    isIdle={isUserIdleForOneMinute}
                 />
-                <HourlyProductionChart 
+                <HourlyProductionChart
                     chartData={weekHourlyData[selectedDateIndex] || []} 
                     chartTitle={`Pounds Produced per Hour - ${selectedDateIndex === 0 ? 'Today' : selectedDateIndex === 1 ? 'Yesterday' : availableDates[selectedDateIndex]?.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}`}
                 />
